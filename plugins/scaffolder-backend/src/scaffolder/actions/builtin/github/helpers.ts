@@ -140,6 +140,16 @@ export async function createGithubRepoWithCollaboratorsAndTopics(
     await validateAccessTeam(client, access);
   }
 
+  if (collaborators) {
+    for (const collaborator of collaborators) {
+      if ('team' in collaborator) {
+        if (collaborator.team.startsWith(`${owner}/`)) {
+          await validateAccessTeam(client, collaborator.team);
+        }
+      }
+    }
+  }
+
   const repoCreationPromise =
     user.data.type === 'Organization'
       ? client.rest.repos.createInOrg({
@@ -216,16 +226,26 @@ export async function createGithubRepoWithCollaboratorsAndTopics(
     for (const collaborator of collaborators) {
       try {
         if ('user' in collaborator) {
+          let collaboratorUser = collaborator.user;
+          if (collaborator.user.startsWith(`${owner}/`)) {
+            [, collaboratorUser] = collaborator.user.split('/');
+          }
+
           await client.rest.repos.addCollaborator({
             owner,
             repo,
-            username: entityRefToName(collaborator.user),
+            username: entityRefToName(collaboratorUser),
             permission: collaborator.access,
           });
         } else if ('team' in collaborator) {
+          let collaboratorTeam = collaborator.team;
+          if (collaborator.team.startsWith(`${owner}/`)) {
+            [, collaboratorTeam] = collaborator.team.split('/');
+          }
+
           await client.rest.teams.addOrUpdateRepoPermissionsInOrg({
             org: owner,
-            team_slug: entityRefToName(collaborator.team),
+            team_slug: entityRefToName(collaboratorTeam),
             owner,
             repo,
             permission: collaborator.access,
